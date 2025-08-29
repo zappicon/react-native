@@ -45,10 +45,13 @@
   "scripts": {
     "clean": "rimraf dist && rimraf src/icons && rimraf src/variants && rimraf src/index.ts",
     "generate": "npm run clean && tsx scripts/generate.ts",
-    "build": "npm run generate && rollup -c"
+    "build": "npm run generate && rollup -c",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
@@ -56,7 +59,11 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "^19.1.9",
+    "eslint": "^9.34.0",
+    "eslint-plugin-react": "^7.37.5",
     "glob": "^11.0.3",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-native": "^0.81.1",
@@ -65,6 +72,7 @@
     "rollup": "^4.49.0",
     "rollup-plugin-dts": "^6.2.3",
     "tslib": "^2.8.1",
-    "tsx": "^4.20.5"
+    "tsx": "^4.20.5",
+    "typescript-eslint": "^8.41.0"
   }
 }
