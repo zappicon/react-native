@@ -1,0 +1,5 @@
+# !/bin/sh
+
+pnpm run lint
+pnpm run build
+pnpm test

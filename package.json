@@ -1,0 +1,70 @@
+{
+  "name": "@zappicon/react-native",
+  "version": "0.0.2",
+  "description": "Free & premium UI icons library, crafted to simplify workflows for designers, developers and creators.",
+  "main": "dist/cjs/index.js",
+  "browser": "dist/esm/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./icons/*": {
+      "import": "./dist/esm/icons/*.js",
+      "require": "./dist/cjs/icons/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "icons",
+    "react-native",
+    "svg",
+    "components",
+    "zappicon"
+  ],
+  "author": {
+    "name": "Haroun Abidi",
+    "email": "contact@harounabidi.com",
+    "url": "https://harounabidi.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zappicon/react-native.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zappicon/react-native/issues"
+  },
+  "homepage": "https://zappicon.com",
+  "scripts": {
+    "clean": "rimraf dist && rimraf src/icons && rimraf src/variants && rimraf src/index.ts",
+    "generate": "npm run clean && tsx scripts/generate.ts",
+    "build": "npm run generate && rollup -c"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "^19.1.9",
+    "glob": "^11.0.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-native": "^0.81.1",
+    "react-native-svg": "^15.12.1",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.49.0",
+    "rollup-plugin-dts": "^6.2.3",
+    "tslib": "^2.8.1",
+    "tsx": "^4.20.5"
+  }
+}
