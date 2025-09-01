@@ -1,0 +1,160 @@
+name: Publish to npm
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # fetch at least one commit before
+          submodules: "recursive"
+
+      - name: Update submodules
+        run: git submodule update --init --recursive --force
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Get current version
+        id: current
+        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+
+      - name: Get previous version
+        id: previous
+        run: |
+          git show HEAD^:package.json > previous_package.json
+          echo "version=$(jq -r .version previous_package.json)" >> $GITHUB_OUTPUT
+
+      - name: Check if version changed
+        id: version_check
+        run: |
+          if [ "${{ steps.current.outputs.version }}" != "${{ steps.previous.outputs.version }}" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Remove node_modules and package-lock.json
+        run: rm -rf node_modules package-lock.json
+
+      - name: Install pnpm
+        if: steps.version_check.outputs.changed == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Install dependencies
+        if: steps.version_check.outputs.changed == 'true'
+        run: pnpm install
+
+      - name: Build package
+        if: steps.version_check.outputs.changed == 'true'
+        run: pnpm run build
+
+      - name: Run tests
+        if: steps.version_check.outputs.changed == 'true'
+        run: pnpm test
+
+      - name: Run linting
+        if: steps.version_check.outputs.changed == 'true'
+        run: pnpm lint
+
+      - name: Publish to npm
+        if: steps.version_check.outputs.changed == 'true'
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Get commit message
+        if: steps.version_check.outputs.changed == 'true'
+        id: commit_message
+        run: |
+          # Get commit message and escape special characters
+          commit_msg=$(git log -1 --pretty=%B | tr '\n' ' ' | sed 's/"/\\"/g')
+          echo "message=$commit_msg" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "v${{ steps.current.outputs.version }}" -m "Release v${{ steps.current.outputs.version }}"
+          git push origin "v${{ steps.current.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.version_check.outputs.changed == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.current.outputs.version }}
+          name: v${{ steps.current.outputs.version }}
+          body: |
+            ## <small>v${{ steps.current.outputs.version }}</small>
+
+            ${{ steps.commit_message.outputs.message }}
+
+            ### Package Information
+            - **Package**: @zappicon/react
+            - **Version**: ${{ steps.current.outputs.version }}
+            - **Published**: ${{ github.event.head_commit.timestamp }}
+
+            ### Installation
+            ```bash
+            npm install @zappicon/react@${{ steps.current.outputs.version }}
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG.md
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          # Get current date
+          current_date=$(date '+%Y-%m-%d')
+
+          # Create backup of changelog
+          cp CHANGELOG.md CHANGELOG.md.bak
+
+          # Create new changelog entry
+          {
+            echo "# Changelog"
+            echo ""
+            echo "All notable changes to this project will be documented in this file."
+            echo ""
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
+            echo ""
+            echo "## [v${{ steps.current.outputs.version }}] - $current_date"
+            echo ""
+            echo "### Changes"
+            echo ""
+            echo "${{ steps.commit_message.outputs.message }}"
+            echo ""
+            # Skip the header lines and add the rest of the existing changelog
+            tail -n +7 CHANGELOG.md.bak
+          } > CHANGELOG.md
+
+          # Clean up backup
+          rm CHANGELOG.md.bak
+
+      - name: Commit and push changelog update
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "docs: update CHANGELOG.md for v${{ steps.current.outputs.version }}"
+          git push origin main
