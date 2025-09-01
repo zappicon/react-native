@@ -55,6 +55,8 @@
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@eslint/js": "^9.34.0",
     "@react-native/babel-preset": "^0.81.1",
     "@rollup/plugin-commonjs": "^28.0.6",
