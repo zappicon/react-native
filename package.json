@@ -28,11 +28,7 @@
     "components",
     "zappicon"
   ],
-  "author": {
-    "name": "Haroun Abidi",
-    "email": "contact@harounabidi.com",
-    "url": "https://harounabidi.com"
-  },
+  "author": "Haroun Abidi (Developed under Zappicon) <contact@harounabidi.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
