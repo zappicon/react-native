@@ -31,7 +31,6 @@ function updateGitSubmodules() {
 async function generateIcons() {
   try {
     await mkdir(ICONS_OUTPUT_DIR, { recursive: true })
-    // Use icons from core
     for (const icon of icons) {
       const iconFileContent = `import * as React from "react"
 import variants from "../variants/${icon.name}"
@@ -101,8 +100,8 @@ async function generateVariants() {
 
       const iconVariants = icon.variants
       iconVariants.map((v) => {
-        const elementCode = renderSvgToCreateElement(v.svg, "  ", undefined)
-        variantEntries.push(`["${v.variant}", ${elementCode}]`)
+        const elementCode = renderSvgToCreateElement(v.svg, "  ")
+        variantEntries.push(`["${v.variant}", <>${elementCode}</>]`)
       })
 
       const variantsMapContent = `import * as React from "react"
@@ -114,7 +113,7 @@ ${variantEntries.join(",\n")}
 ])
 `
       await writeFile(
-        path.join(VARIANTS_OUTPUT_DIR, `${icon.name}.ts`),
+        path.join(VARIANTS_OUTPUT_DIR, `${icon.name}.tsx`),
         variantsMapContent
       )
     }
@@ -128,77 +127,76 @@ ${variantEntries.join(",\n")}
   }
 }
 
-function renderSvgToCreateElement(node, indent = "", key) {
-  if (!node) return "null"
-  const { name, type, value, attributes = {}, children = [] } = node
-  if (type === "text") {
-    return value ? JSON.stringify(value) : "null"
+type SvgChild = {
+  name: string
+  svg?: {
+    children: readonly SvgChild[]
   }
+  attributes?: Record<string, string>
+  children?: readonly SvgChild[]
+  type?: string
+  value?: string
+  parent?: SvgChild | null
+}
+
+function renderSvgToCreateElement(node: SvgChild, indent = ""): string {
+  if (!node) return "null"
+
+  const { name, type, value, attributes = {}, children = [] } = node
+
+  // Text node
+  if (type === "text") {
+    return value ? value : ""
+  }
+
   if (type !== "element") return "null"
 
-  // Only process <path> elements for variants
+  // root <svg>: unwrap and render children directly
   if (name === "svg") {
-    // For the root svg, return a React.Fragment containing its children
     const childrenCode = children
-      .map((child, idx) => renderSvgToCreateElement(child, indent + "  ", idx))
-      .filter((child) => child !== "null")
-    if (childrenCode.length === 0) {
-      return `React.createElement(React.Fragment, null)`
-    }
-    const childrenString =
-      childrenCode.length === 1
-        ? childrenCode[0]
-        : `[\n${indent}  ${childrenCode.join(`,\n${indent}  `)}\n${indent}]`
-    return `React.createElement(React.Fragment, null, ${childrenString})`
+      .map((child) => renderSvgToCreateElement(child, indent + "  "))
+      .filter((c) => c !== "null")
+
+    return childrenCode.length === 1 ? childrenCode[0] : childrenCode.join("\n")
   }
 
-  // Only allow key and valid SVG props for <path> etc, no ref, no ...props
-  const props: Record<string, unknown> = {}
-  if (key !== undefined) {
-    props.key = key
-  }
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (key === "fill") return // Remove fill property entirely
-    const propName = convertAttributeToReactProp(key)
-    props[propName] = JSON.stringify(value)
+  //
+  // Build JSX props
+  //
+  const props: string[] = []
+
+  Object.entries(attributes).forEach(([k, v]) => {
+    if (k === "fill") return // strip fill always
+    const reactName = convertAttributeToReactProp(k)
+    props.push(`${reactName}="${v}"`)
   })
-  let propsString = "{"
-  const propEntries = Object.entries(props)
-  propEntries.forEach(([key, value], index) => {
-    if (key === "key") {
-      propsString += `key: ${value}`
-    } else {
-      propsString += `${key}: ${value}`
-    }
-    if (index < propEntries.length - 1) {
-      propsString += ", "
-    }
-  })
-  propsString += "}"
-  if (children.length === 0) {
-    return `React.createElement(SVG.${uppercaseFirstLetter(
-      name
-    )}, ${propsString})`
+
+  const propsString = props.length > 0 ? " " + props.join(" ") : ""
+
+  //
+  // No children → self-closing JSX
+  //
+  if (!children.length) {
+    return `<SVG.${uppercaseFirstLetter(name)}${propsString} />`
   }
-  const childrenCode = children
-    .map((child, idx) => renderSvgToCreateElement(child, indent + "  ", idx))
-    .filter((child) => child !== "null")
-  if (childrenCode.length === 0) {
-    return `React.createElement(SVG.${uppercaseFirstLetter(
-      name
-    )}, ${propsString})`
-  }
-  const childrenString =
-    childrenCode.length === 1
-      ? childrenCode[0]
-      : `[\n${indent}  ${childrenCode.join(`,\n${indent}  `)}\n${indent}]`
-  return `React.createElement(SVG.${uppercaseFirstLetter(
+
+  //
+  // Has children
+  //
+  const childrenString = children
+    .map((child) => renderSvgToCreateElement(child, indent + "  "))
+    .filter((c) => c !== "null")
+    .join("\n" + indent)
+
+  return `<SVG.${uppercaseFirstLetter(
     name
-  )}, ${propsString}, ${childrenString})`
+  )}${propsString}>\n${indent}${childrenString}\n</SVG.${uppercaseFirstLetter(
+    name
+  )}>`
 }
 
 function convertAttributeToReactProp(attr: string): string {
-  const specialCases = {
+  const specialCases: Record<string, string> = {
     class: "className",
     for: "htmlFor",
     tabindex: "tabIndex",

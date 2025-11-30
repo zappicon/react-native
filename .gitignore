@@ -68,5 +68,5 @@ temp/
 
 # Generated files (auto-generated from SVGs, should not be committed)
 src/icons/*.tsx
-src/variants/*.ts
+src/variants/*.tsx
 src/index.ts
